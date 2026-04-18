@@ -174,7 +174,7 @@ function QuestionCard({ q, user, answers, onAnswer }) {
         </div>
         <span style={{ fontSize: 13, color: '#999' }}>{q.author} · {q.date}</span>
       </div>
-      <p style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 14, fontWeight: 500 }}>{q.enunciado}</p>
+      <p style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 14, fontWeight: 500, color: '#1a1a1a' }}>{q.enunciado}</p>
       {['a', 'b', 'c'].map(k => (
         <button key={k} onClick={() => choose(k)}
           style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '11px 12px', marginBottom: 8, background: optBg(k), border: optBorder(k), borderRadius: 9, color: optColor(k), fontSize: 14, textAlign: 'left', transition: 'all 0.15s', cursor: revealed ? 'default' : 'pointer' }}>
