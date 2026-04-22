@@ -16,10 +16,6 @@
   input[type="text"]:focus, textarea:focus { border-color: #888; }
   textarea { resize: vertical; line-height: 1.5; }
   button { font-family: inherit; cursor: pointer; }
-  @media (prefers-color-scheme: dark) {
-    body { background: #1a1a1a; color: #f0f0ee; }
-    input[type="text"], textarea { background: #2a2a2a; border-color: #444; color: #f0f0ee; }
-  }
 </style>
 </head>
 <body>
@@ -34,6 +30,20 @@
 const { useState, useEffect, useCallback } = React;
 const TODAY = () => new Date().toISOString().split('T')[0];
 
+const AVATAR_COLORS = ['#dbeafe','#dcfce7','#fef9c3','#fce7f3','#ede9fe','#ffedd5'];
+const AVATAR_TEXT   = ['#1d4ed8','#166534','#854d0e','#9d174d','#5b21b6','#9a3412'];
+const avatarIdx = name => name.charCodeAt(0) % AVATAR_COLORS.length;
+
+function Avatar({ name, size = 32 }) {
+  const i = avatarIdx(name);
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', background: AVATAR_COLORS[i], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.38, fontWeight: 700, color: AVATAR_TEXT[i], flexShrink: 0, letterSpacing: '-0.5px' }}>
+      {name.slice(0, 2).toUpperCase()}
+    </div>
+  );
+}
+
+/* ─── LOGIN ─── */
 function LoginScreen({ onLogin }) {
   const [nick, setNick] = useState('');
   const [err, setErr] = useState('');
@@ -48,14 +58,14 @@ function LoginScreen({ onLogin }) {
       <div style={{ width: '100%', maxWidth: 360 }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 6 }}>Oposiciones</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6, color: '#1a1a1a' }}>Oposiciones</h1>
           <p style={{ fontSize: 14, color: '#666' }}>Repasa con tus compañeros</p>
         </div>
         <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 14, padding: '1.5rem' }}>
-          <label style={{ display: 'block', fontSize: 13, color: '#666', marginBottom: 8 }}>Tu nickname</label>
+          <label style={{ display: 'block', fontSize: 13, color: '#555', marginBottom: 8, fontWeight: 500 }}>Tu nickname</label>
           <input type="text" placeholder="Ej: María, Pablo, Ana..." value={nick} onChange={e => { setNick(e.target.value); setErr(''); }} onKeyDown={e => e.key === 'Enter' && handle()} maxLength={20} style={{ marginBottom: err ? 8 : 16 }} />
           {err && <p style={{ fontSize: 13, color: '#d9534f', marginBottom: 10 }}>{err}</p>}
-          <button onClick={handle} style={{ width: '100%', padding: '11px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 500 }}>Entrar →</button>
+          <button onClick={handle} style={{ width: '100%', padding: '11px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 600 }}>Entrar →</button>
         </div>
         <p style={{ textAlign: 'center', fontSize: 12, color: '#aaa', marginTop: 16 }}>Sin contraseña · Solo pon tu nombre</p>
       </div>
@@ -63,22 +73,24 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+/* ─── BARRA PROGRESO ─── */
 function ProgressBar({ current, max }) {
   const pct = Math.min(100, Math.round((current / max) * 100));
   const color = current >= max ? '#d9534f' : current >= 3 ? '#f0a500' : '#3a9c5f';
   return (
     <div style={{ marginBottom: 16, padding: '12px 14px', background: '#fff', border: '1px solid #e5e5e5', borderRadius: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#666', marginBottom: 7 }}>
-        <span>Preguntas subidas hoy</span>
-        <span style={{ fontWeight: 600, color }}>{current} / {max}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#555', marginBottom: 7 }}>
+        <span style={{ fontWeight: 500 }}>Preguntas subidas hoy</span>
+        <span style={{ fontWeight: 700, color }}>{current} / {max}</span>
       </div>
-      <div style={{ height: 6, background: '#eee', borderRadius: 99, overflow: 'hidden' }}>
+      <div style={{ height: 7, background: '#eee', borderRadius: 99, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99, transition: 'width 0.3s' }} />
       </div>
     </div>
   );
 }
 
+/* ─── CREAR ─── */
 function CreateTab({ user, questions, onSave }) {
   const todayQ = questions.filter(q => q.author === user && q.date === TODAY());
   const remaining = 5 - todayQ.length;
@@ -98,14 +110,14 @@ function CreateTab({ user, questions, onSave }) {
     setForm(empty); setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
-  const lbl = { display: 'block', fontSize: 13, color: '#666', marginBottom: 7, marginTop: 14 };
+  const lbl = { display: 'block', fontSize: 13, color: '#555', marginBottom: 7, marginTop: 14, fontWeight: 500 };
   return (
     <div style={{ padding: '1rem 1.25rem', paddingBottom: 90 }}>
       <ProgressBar current={todayQ.length} max={5} />
       {remaining <= 0 ? (
         <div style={{ background: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: 12, padding: '1.25rem', textAlign: 'center' }}>
           <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
-          <p style={{ fontWeight: 600, color: '#d9534f', fontSize: 15 }}>Límite diario alcanzado</p>
+          <p style={{ fontWeight: 700, color: '#d9534f', fontSize: 15 }}>Límite diario alcanzado</p>
           <p style={{ fontSize: 13, color: '#d9534f', marginTop: 5 }}>Vuelve mañana para subir más preguntas</p>
         </div>
       ) : (
@@ -122,25 +134,25 @@ function CreateTab({ user, questions, onSave }) {
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             {['a', 'b', 'c'].map(k => (
               <button key={k} onClick={() => setForm(f => ({ ...f, correct: k }))}
-                style={{ flex: 1, padding: '9px 4px', fontSize: 14, fontWeight: 600, border: `2px solid ${form.correct === k ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: form.correct === k ? '#1a1a1a' : '#fff', color: form.correct === k ? '#fff' : '#666', transition: 'all 0.15s' }}>
+                style={{ flex: 1, padding: '9px 4px', fontSize: 14, fontWeight: 600, border: `2px solid ${form.correct === k ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: form.correct === k ? '#1a1a1a' : '#fff', color: form.correct === k ? '#fff' : '#888', transition: 'all 0.15s' }}>
                 Opción {k.toUpperCase()}
               </button>
             ))}
           </div>
           {err && <p style={{ fontSize: 13, color: '#d9534f', marginBottom: 10 }}>{err}</p>}
-          {saved && <p style={{ fontSize: 13, color: '#3a9c5f', marginBottom: 10, fontWeight: 500 }}>✓ ¡Pregunta guardada!</p>}
+          {saved && <p style={{ fontSize: 13, color: '#3a9c5f', marginBottom: 10, fontWeight: 600 }}>✓ ¡Pregunta guardada!</p>}
           <button onClick={submit} disabled={saving}
-            style={{ width: '100%', padding: '12px', background: saving ? '#666' : '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 500 }}>
+            style={{ width: '100%', padding: '12px', background: saving ? '#666' : '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 600 }}>
             {saving ? 'Guardando...' : `Guardar (${remaining} restante${remaining !== 1 ? 's' : ''})`}
           </button>
         </div>
       )}
       {todayQ.length > 0 && (
         <div style={{ marginTop: 20 }}>
-          <p style={{ fontSize: 13, color: '#999', marginBottom: 10 }}>Tus preguntas de hoy</p>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 10, fontWeight: 600 }}>Tus preguntas de hoy</p>
           {todayQ.map(q => (
             <div key={q.id} style={{ background: '#f9f9f7', border: '1px solid #e5e5e5', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
-              <p style={{ fontSize: 14, lineHeight: 1.5 }}>{q.enunciado}</p>
+              <p style={{ fontSize: 14, lineHeight: 1.5, color: '#1a1a1a', fontWeight: 500 }}>{q.enunciado}</p>
               <p style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>Correcta: {q.options[q.correct]}</p>
             </div>
           ))}
@@ -150,6 +162,7 @@ function CreateTab({ user, questions, onSave }) {
   );
 }
 
+/* ─── TARJETA PREGUNTA ─── */
 function QuestionCard({ q, user, answers, onAnswer }) {
   const key = `${user}__${q.id}`;
   const prev = answers[key];
@@ -160,32 +173,27 @@ function QuestionCard({ q, user, answers, onAnswer }) {
     setSelected(opt); setRevealed(true);
     onAnswer(q.id, opt, opt === q.correct);
   };
-  const avatarColors = ['#dbeafe', '#dcfce7', '#fef9c3', '#fce7f3'];
-  const textColors = ['#1d4ed8', '#166534', '#854d0e', '#9d174d'];
-  const ci = q.author.charCodeAt(0) % avatarColors.length;
   const optBg = k => { if (!revealed) return selected === k ? '#f0f0ee' : '#fff'; if (k === q.correct) return '#dcfce7'; if (k === selected && k !== q.correct) return '#fee2e2'; return '#fafafa'; };
   const optBorder = k => { if (!revealed) return selected === k ? '2px solid #888' : '1px solid #e5e5e5'; if (k === q.correct) return '1.5px solid #4ade80'; if (k === selected && k !== q.correct) return '1.5px solid #f87171'; return '1px solid #e5e5e5'; };
-  const optColor = k => { if (!revealed) return '#1a1a1a'; if (k === q.correct) return '#166534'; if (k === selected && k !== q.correct) return '#991b1b'; return '#888'; };
+  const optColor = k => { if (!revealed) return '#1a1a1a'; if (k === q.correct) return '#166534'; if (k === selected && k !== q.correct) return '#991b1b'; return '#999'; };
   return (
     <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 14, padding: '1.25rem', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <div style={{ width: 30, height: 30, borderRadius: '50%', background: avatarColors[ci], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: textColors[ci], flexShrink: 0 }}>
-          {q.author.slice(0, 2).toUpperCase()}
-        </div>
-        <span style={{ fontSize: 13, color: '#999' }}>{q.author} · {q.date}</span>
+        <Avatar name={q.author} size={30} />
+        <span style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>{q.author} · {q.date}</span>
       </div>
-      <p style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 14, fontWeight: 500, color: '#1a1a1a' }}>{q.enunciado}</p>
+      <p style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 14, fontWeight: 600, color: '#1a1a1a' }}>{q.enunciado}</p>
       {['a', 'b', 'c'].map(k => (
         <button key={k} onClick={() => choose(k)}
           style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '11px 12px', marginBottom: 8, background: optBg(k), border: optBorder(k), borderRadius: 9, color: optColor(k), fontSize: 14, textAlign: 'left', transition: 'all 0.15s', cursor: revealed ? 'default' : 'pointer' }}>
-          <span style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px solid currentColor', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0, fontWeight: 600 }}>{k.toUpperCase()}</span>
-          <span style={{ flex: 1 }}>{q.options[k]}</span>
-          {revealed && k === q.correct && <span>✓</span>}
-          {revealed && k === selected && k !== q.correct && <span>✗</span>}
+          <span style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px solid currentColor', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0, fontWeight: 700 }}>{k.toUpperCase()}</span>
+          <span style={{ flex: 1, color: optColor(k), fontWeight: 500 }}>{q.options[k]}</span>
+          {revealed && k === q.correct && <span style={{ color: '#166534' }}>✓</span>}
+          {revealed && k === selected && k !== q.correct && <span style={{ color: '#991b1b' }}>✗</span>}
         </button>
       ))}
       {revealed && (
-        <p style={{ fontSize: 13, marginTop: 6, fontWeight: 500, color: selected === q.correct ? '#3a9c5f' : '#d9534f' }}>
+        <p style={{ fontSize: 13, marginTop: 6, fontWeight: 600, color: selected === q.correct ? '#3a9c5f' : '#d9534f' }}>
           {selected === q.correct ? '¡Correcto! 🎉' : `Incorrecto. La respuesta correcta era: ${q.options[q.correct]}`}
         </p>
       )}
@@ -193,6 +201,7 @@ function QuestionCard({ q, user, answers, onAnswer }) {
   );
 }
 
+/* ─── RESPONDER ─── */
 function AnswerTab({ user, questions, answers, onAnswer }) {
   const [filter, setFilter] = useState('hoy');
   const [onlyFailed, setOnlyFailed] = useState(false);
@@ -201,7 +210,7 @@ function AnswerTab({ user, questions, answers, onAnswer }) {
   if (onlyFailed) filtered = filtered.filter(q => { const a = answers[`${user}__${q.id}`]; return a && !a.correct; });
   filtered.sort((a, b) => b.ts - a.ts);
   const chip = (label, active, onClick, danger) => (
-    <button onClick={onClick} style={{ padding: '6px 14px', fontSize: 13, fontWeight: active ? 600 : 400, border: `1.5px solid ${active ? (danger ? '#d9534f' : '#1a1a1a') : '#e5e5e5'}`, borderRadius: 99, background: active ? (danger ? '#d9534f' : '#1a1a1a') : '#fff', color: active ? '#fff' : '#666', cursor: 'pointer' }}>
+    <button onClick={onClick} style={{ padding: '6px 14px', fontSize: 13, fontWeight: active ? 700 : 400, border: `1.5px solid ${active ? (danger ? '#d9534f' : '#1a1a1a') : '#e5e5e5'}`, borderRadius: 99, background: active ? (danger ? '#d9534f' : '#1a1a1a') : '#fff', color: active ? '#fff' : '#666', cursor: 'pointer' }}>
       {label}
     </button>
   );
@@ -222,66 +231,189 @@ function AnswerTab({ user, questions, answers, onAnswer }) {
   );
 }
 
+/* ─── BANCO DE PREGUNTAS ─── */
+function BancoTab({ questions }) {
+  const [search, setSearch] = useState('');
+  const [filterAuthor, setFilterAuthor] = useState('todos');
+  const authors = [...new Set(questions.map(q => q.author))].sort();
+  let filtered = [...questions];
+  if (filterAuthor !== 'todos') filtered = filtered.filter(q => q.author === filterAuthor);
+  if (search.trim()) filtered = filtered.filter(q => q.enunciado.toLowerCase().includes(search.toLowerCase()));
+  filtered.sort((a, b) => b.ts - a.ts);
+
+  return (
+    <div style={{ padding: '1rem 1.25rem', paddingBottom: 90 }}>
+      <input type="text" placeholder="🔍  Buscar pregunta..." value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: 12 }} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button onClick={() => setFilterAuthor('todos')}
+          style={{ padding: '5px 12px', fontSize: 13, fontWeight: filterAuthor === 'todos' ? 700 : 400, border: `1.5px solid ${filterAuthor === 'todos' ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 99, background: filterAuthor === 'todos' ? '#1a1a1a' : '#fff', color: filterAuthor === 'todos' ? '#fff' : '#666', cursor: 'pointer' }}>
+          Todos
+        </button>
+        {authors.map(a => (
+          <button key={a} onClick={() => setFilterAuthor(a)}
+            style={{ padding: '5px 12px', fontSize: 13, fontWeight: filterAuthor === a ? 700 : 400, border: `1.5px solid ${filterAuthor === a ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 99, background: filterAuthor === a ? '#1a1a1a' : '#fff', color: filterAuthor === a ? '#fff' : '#666', cursor: 'pointer' }}>
+            {a}
+          </button>
+        ))}
+      </div>
+      <p style={{ fontSize: 12, color: '#aaa', marginBottom: 12 }}>{filtered.length} pregunta{filtered.length !== 1 ? 's' : ''}</p>
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+          <p style={{ fontSize: 14, color: '#999' }}>No hay preguntas</p>
+        </div>
+      ) : filtered.map(q => (
+        <div key={q.id} style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Avatar name={q.author} size={24} />
+            <span style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{q.author} · {q.date}</span>
+          </div>
+          <p style={{ fontSize: 14, lineHeight: 1.5, color: '#1a1a1a', fontWeight: 600, marginBottom: 8 }}>{q.enunciado}</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {['a', 'b', 'c'].map(k => (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: k === q.correct ? '#dcfce7' : '#f9f9f7', border: `1px solid ${k === q.correct ? '#86efac' : '#ebebeb'}` }}>
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: k === q.correct ? '#4ade80' : '#e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: k === q.correct ? '#166534' : '#888', flexShrink: 0 }}>{k.toUpperCase()}</span>
+                <span style={{ fontSize: 13, color: k === q.correct ? '#166534' : '#555', fontWeight: k === q.correct ? 600 : 400 }}>{q.options[k]}</span>
+                {k === q.correct && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#3a9c5f', fontWeight: 700 }}>✓ correcta</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── RESULTADOS ─── */
 function ResultsTab({ user, questions, answers }) {
+  const [subTab, setSubTab] = useState('mis');
   const todayStr = TODAY();
+
+  /* MIS STATS */
   const myToday = Object.entries(answers).filter(([k, v]) => k.startsWith(user + '__') && v.date === todayStr);
   const correct = myToday.filter(([, v]) => v.correct).length;
   const wrong = myToday.filter(([, v]) => !v.correct).length;
   const total = myToday.length;
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const pctColor = pct >= 70 ? '#3a9c5f' : pct >= 40 ? '#f0a500' : '#d9534f';
-  const Stat = ({ label, val, color }) => (
-    <div style={{ background: '#f9f9f7', borderRadius: 10, padding: '14px 10px', textAlign: 'center' }}>
-      <p style={{ fontSize: 12, color: '#999', marginBottom: 6 }}>{label}</p>
-      <p style={{ fontSize: 26, fontWeight: 700, color: color || '#1a1a1a' }}>{val}</p>
-    </div>
-  );
   const failedIds = [...new Set(Object.entries(answers).filter(([k, v]) => k.startsWith(user + '__') && !v.correct).map(([k]) => k.split('__')[1]))];
   const failedQs = failedIds.map(id => questions.find(q => q.id === id)).filter(Boolean);
   const history = Object.entries(answers).filter(([k]) => k.startsWith(user + '__')).sort(([, a], [, b]) => b.ts - a.ts).slice(0, 20);
+
+  /* RANKING GLOBAL */
+  const allUsers = [...new Set(Object.keys(answers).map(k => k.split('__')[0]))];
+  const ranking = allUsers.map(u => {
+    const all = Object.entries(answers).filter(([k]) => k.startsWith(u + '__'));
+    const todayA = all.filter(([, v]) => v.date === todayStr);
+    const totalAll = all.length;
+    const correctAll = all.filter(([, v]) => v.correct).length;
+    const correctToday = todayA.filter(([, v]) => v.correct).length;
+    const totalToday = todayA.length;
+    const pctAll = totalAll > 0 ? Math.round((correctAll / totalAll) * 100) : 0;
+    const questionsUploaded = questions.filter(q => q.author === u).length;
+    return { u, totalAll, correctAll, correctToday, totalToday, pctAll, questionsUploaded };
+  }).sort((a, b) => b.correctAll - a.correctAll);
+
+  const Stat = ({ label, val, color }) => (
+    <div style={{ background: '#f9f9f7', borderRadius: 10, padding: '14px 10px', textAlign: 'center' }}>
+      <p style={{ fontSize: 12, color: '#888', marginBottom: 6, fontWeight: 500 }}>{label}</p>
+      <p style={{ fontSize: 26, fontWeight: 700, color: color || '#1a1a1a' }}>{val}</p>
+    </div>
+  );
+
+  const medals = ['🥇', '🥈', '🥉'];
+
   return (
     <div style={{ padding: '1rem 1.25rem', paddingBottom: 90 }}>
-      <p style={{ fontSize: 13, color: '#999', marginBottom: 12, fontWeight: 500 }}>Resumen de hoy</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, marginBottom: 20 }}>
-        <Stat label="Respondidas" val={total} />
-        <Stat label="Aciertos" val={correct} color="#3a9c5f" />
-        <Stat label="Fallos" val={wrong} color="#d9534f" />
-        <Stat label="Precisión" val={`${pct}%`} color={pctColor} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <button onClick={() => setSubTab('mis')} style={{ flex: 1, padding: '8px', fontSize: 13, fontWeight: subTab === 'mis' ? 700 : 400, border: `1.5px solid ${subTab === 'mis' ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: subTab === 'mis' ? '#1a1a1a' : '#fff', color: subTab === 'mis' ? '#fff' : '#666', cursor: 'pointer' }}>Mis resultados</button>
+        <button onClick={() => setSubTab('ranking')} style={{ flex: 1, padding: '8px', fontSize: 13, fontWeight: subTab === 'ranking' ? 700 : 400, border: `1.5px solid ${subTab === 'ranking' ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: subTab === 'ranking' ? '#1a1a1a' : '#fff', color: subTab === 'ranking' ? '#fff' : '#666', cursor: 'pointer' }}>🏆 Ranking</button>
       </div>
-      {failedQs.length > 0 && (
+
+      {subTab === 'mis' ? (
         <>
-          <p style={{ fontSize: 13, color: '#999', marginBottom: 10, fontWeight: 500 }}>Para repasar ({failedQs.length})</p>
-          {failedQs.slice(0, 8).map(q => (
-            <div key={q.id} style={{ background: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
-              <p style={{ fontSize: 13, color: '#d9534f', lineHeight: 1.5 }}>{q.enunciado}</p>
-              <p style={{ fontSize: 12, color: '#d9534f', marginTop: 5, fontWeight: 600 }}>Resp. correcta: {q.options[q.correct]}</p>
-            </div>
-          ))}
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 12, fontWeight: 600 }}>Resumen de hoy</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, marginBottom: 20 }}>
+            <Stat label="Respondidas" val={total} />
+            <Stat label="Aciertos" val={correct} color="#3a9c5f" />
+            <Stat label="Fallos" val={wrong} color="#d9534f" />
+            <Stat label="Precisión" val={`${pct}%`} color={pctColor} />
+          </div>
+          {failedQs.length > 0 && (
+            <>
+              <p style={{ fontSize: 13, color: '#888', marginBottom: 10, fontWeight: 600 }}>Para repasar ({failedQs.length})</p>
+              {failedQs.slice(0, 8).map(q => (
+                <div key={q.id} style={{ background: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                  <p style={{ fontSize: 13, color: '#c0392b', lineHeight: 1.5, fontWeight: 500 }}>{q.enunciado}</p>
+                  <p style={{ fontSize: 12, color: '#c0392b', marginTop: 5, fontWeight: 700 }}>Resp. correcta: {q.options[q.correct]}</p>
+                </div>
+              ))}
+            </>
+          )}
+          {history.length > 0 && (
+            <>
+              <p style={{ fontSize: 13, color: '#888', marginTop: 18, marginBottom: 10, fontWeight: 600 }}>Historial reciente</p>
+              {history.map(([k, v]) => {
+                const qid = k.split('__')[1];
+                const q = questions.find(x => x.id === qid);
+                if (!q) return null;
+                return (
+                  <div key={k} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: '1px solid #f0f0ee' }}>
+                    <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1, color: v.correct ? '#3a9c5f' : '#d9534f', fontWeight: 700 }}>{v.correct ? '✓' : '✗'}</span>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 13, lineHeight: 1.4, color: '#1a1a1a', fontWeight: 500 }}>{q.enunciado}</p>
+                      <p style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{q.author} · {v.date}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </>
-      )}
-      {history.length > 0 && (
+      ) : (
         <>
-          <p style={{ fontSize: 13, color: '#999', marginTop: 18, marginBottom: 10, fontWeight: 500 }}>Historial reciente</p>
-          {history.map(([k, v]) => {
-            const qid = k.split('__')[1];
-            const q = questions.find(x => x.id === qid);
-            if (!q) return null;
-            return (
-              <div key={k} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: '1px solid #f0f0ee' }}>
-                <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1, color: v.correct ? '#3a9c5f' : '#d9534f' }}>{v.correct ? '✓' : '✗'}</span>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 4, fontWeight: 600 }}>Ranking global (total acumulado)</p>
+          <p style={{ fontSize: 12, color: '#bbb', marginBottom: 16 }}>Ordenado por aciertos totales</p>
+          {ranking.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🏆</div>
+              <p style={{ fontSize: 14, color: '#999' }}>Aún no hay datos de ranking</p>
+            </div>
+          ) : ranking.map((r, i) => (
+            <div key={r.u} style={{ background: i === 0 ? '#fffbeb' : '#fff', border: `1.5px solid ${i === 0 ? '#fbbf24' : '#e5e5e5'}`, borderRadius: 14, padding: '14px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <span style={{ fontSize: 22 }}>{medals[i] || '🎖️'}</span>
+                <Avatar name={r.u} size={34} />
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 13, lineHeight: 1.4 }}>{q.enunciado}</p>
-                  <p style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{q.author} · {v.date}</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>{r.u}</p>
+                  <p style={{ fontSize: 12, color: '#888' }}>{r.questionsUploaded} preguntas subidas en total</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: 22, fontWeight: 700, color: '#3a9c5f' }}>{r.pctAll}%</p>
+                  <p style={{ fontSize: 11, color: '#aaa' }}>precisión</p>
                 </div>
               </div>
-            );
-          })}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                {[
+                  { label: 'Aciertos totales', val: r.correctAll, color: '#3a9c5f' },
+                  { label: 'Fallos totales', val: r.totalAll - r.correctAll, color: '#d9534f' },
+                  { label: 'Aciertos hoy', val: r.correctToday, color: '#f0a500' },
+                ].map(s => (
+                  <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px', textAlign: 'center' }}>
+                    <p style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{s.val}</p>
+                    <p style={{ fontSize: 10, color: '#aaa', marginTop: 2, lineHeight: 1.3 }}>{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </>
       )}
     </div>
   );
 }
 
+/* ─── APP PRINCIPAL ─── */
 function App() {
   const [user, setUser] = useState(() => localStorage.getItem('opos:nick') || null);
   const [tab, setTab] = useState('responder');
@@ -316,43 +448,56 @@ function App() {
   const todayAnswers = Object.entries(answers).filter(([k, v]) => k.startsWith(user + '__') && v.date === TODAY());
   const todayCorrect = todayAnswers.filter(([, v]) => v.correct).length;
   const todayTotal = todayAnswers.length;
-  const navIcon = { crear: '＋', responder: '◯', resultados: '◎' };
-  const navLabel = { crear: 'Crear', responder: 'Responder', resultados: 'Resultados' };
+
+  const navItems = [
+    { id: 'crear',      icon: '＋', label: 'Crear' },
+    { id: 'responder',  icon: '◯',  label: 'Test' },
+    { id: 'banco',      icon: '📋', label: 'Banco' },
+    { id: 'resultados', icon: '◎',  label: 'Resultados' },
+  ];
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '12px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
+      {/* HEADER */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '10px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f0f0ee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }}>
-            {user.slice(0, 2).toUpperCase()}
-          </div>
+          <Avatar name={user} size={34} />
           <div>
-            <p style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>{user}</p>
-            <p style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{todayCorrect}/{todayTotal} correctas hoy</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>{user}</p>
+            <p style={{ fontSize: 12, color: '#888', marginTop: 1 }}>{todayCorrect}/{todayTotal} correctas hoy</p>
           </div>
         </div>
-        <button onClick={() => { localStorage.removeItem('opos:nick'); setUser(null); }} style={{ fontSize: 13, color: '#999', background: 'none', border: '1px solid #e5e5e5', borderRadius: 6, padding: '5px 10px' }}>Salir</button>
+        <button onClick={() => { localStorage.removeItem('opos:nick'); setUser(null); }}
+          style={{ fontSize: 13, color: '#888', background: 'none', border: '1px solid #e5e5e5', borderRadius: 6, padding: '5px 10px', fontWeight: 500 }}>
+          Salir
+        </button>
       </div>
+
+      {/* CONTENIDO */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '4rem', color: '#999', fontSize: 14 }}>Cargando preguntas...</div>
+          <div style={{ textAlign: 'center', padding: '4rem', color: '#999', fontSize: 14 }}>Cargando...</div>
         ) : tab === 'crear' ? (
           <CreateTab user={user} questions={questions} onSave={handleSaveQuestion} />
         ) : tab === 'responder' ? (
           <AnswerTab user={user} questions={questions} answers={answers} onAnswer={handleAnswer} />
+        ) : tab === 'banco' ? (
+          <BancoTab questions={questions} />
         ) : (
           <ResultsTab user={user} questions={questions} answers={answers} />
         )}
       </div>
+
+      {/* NAV */}
       <nav style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: '#fff', borderTop: '1px solid #e5e5e5', display: 'flex', zIndex: 10 }}>
-        {['crear', 'responder', 'resultados'].map(n => {
-          const active = tab === n;
+        {navItems.map(n => {
+          const active = tab === n.id;
           return (
-            <button key={n} onClick={() => setTab(n)}
-              style={{ flex: 1, padding: '10px 8px 8px', fontSize: 12, fontWeight: active ? 600 : 400, color: active ? '#1a1a1a' : '#aaa', background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', borderTop: active ? '2px solid #1a1a1a' : '2px solid transparent' }}>
-              <span style={{ fontSize: 20 }}>{navIcon[n]}</span>
-              <span>{navLabel[n]}</span>
-              {n === 'crear' && <span style={{ fontSize: 10, color: todayMine >= 5 ? '#d9534f' : '#aaa' }}>{todayMine}/5</span>}
+            <button key={n.id} onClick={() => setTab(n.id)}
+              style={{ flex: 1, padding: '8px 4px 6px', fontSize: 10, fontWeight: active ? 700 : 400, color: active ? '#1a1a1a' : '#bbb', background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer', borderTop: active ? '2.5px solid #1a1a1a' : '2.5px solid transparent' }}>
+              <span style={{ fontSize: 18 }}>{n.icon}</span>
+              <span>{n.label}</span>
+              {n.id === 'crear' && <span style={{ fontSize: 9, color: todayMine >= 5 ? '#d9534f' : '#bbb' }}>{todayMine}/5</span>}
             </button>
           );
         })}
