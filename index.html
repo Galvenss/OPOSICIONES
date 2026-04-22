@@ -12,8 +12,12 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
-  input[type="text"], textarea { display: block; width: 100%; padding: 9px 12px; font-size: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #1a1a1a; outline: none; font-family: inherit; transition: border-color 0.15s; }
-  input[type="text"]:focus, textarea:focus { border-color: #888; }
+  input[type="text"], input[type="number"], textarea, select {
+    display: block; width: 100%; padding: 9px 12px; font-size: 15px;
+    border: 1px solid #ddd; border-radius: 8px; background: #fff;
+    color: #1a1a1a; outline: none; font-family: inherit; transition: border-color 0.15s;
+  }
+  input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:focus { border-color: #888; }
   textarea { resize: vertical; line-height: 1.5; }
   button { font-family: inherit; cursor: pointer; }
 </style>
@@ -27,7 +31,7 @@
   const db = firebase.database();
 </script>
 <script type="text/babel">
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef } = React;
 const TODAY = () => new Date().toISOString().split('T')[0];
 
 const AVATAR_COLORS = ['#dbeafe','#dcfce7','#fef9c3','#fce7f3','#ede9fe','#ffedd5'];
@@ -41,6 +45,31 @@ function Avatar({ name, size = 32 }) {
       {name.slice(0, 2).toUpperCase()}
     </div>
   );
+}
+
+/* ─── NOTIFICACIONES ─── */
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+function scheduleReminderCheck() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date();
+  const hour = now.getHours();
+  const lastNotif = localStorage.getItem('opos:lastNotif');
+  const todayStr = TODAY();
+  if (lastNotif === todayStr) return;
+  if (hour >= 9 && hour < 22) {
+    const questionsToday = parseInt(localStorage.getItem('opos:questionsToday') || '0');
+    if (questionsToday < 5) {
+      new Notification('📚 Oposiciones', {
+        body: `¡Recuerda subir tus ${5 - questionsToday} pregunta${5 - questionsToday !== 1 ? 's' : ''} de hoy!`,
+        icon: ''
+      });
+      localStorage.setItem('opos:lastNotif', todayStr);
+    }
+  }
 }
 
 /* ─── LOGIN ─── */
@@ -73,7 +102,6 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-/* ─── BARRA PROGRESO ─── */
 function ProgressBar({ current, max }) {
   const pct = Math.min(100, Math.round((current / max) * 100));
   const color = current >= max ? '#d9534f' : current >= 3 ? '#f0a500' : '#3a9c5f';
@@ -162,7 +190,7 @@ function CreateTab({ user, questions, onSave }) {
   );
 }
 
-/* ─── TARJETA PREGUNTA ─── */
+/* ─── TARJETA PREGUNTA (modo diario) ─── */
 function QuestionCard({ q, user, answers, onAnswer }) {
   const key = `${user}__${q.id}`;
   const prev = answers[key];
@@ -173,20 +201,20 @@ function QuestionCard({ q, user, answers, onAnswer }) {
     setSelected(opt); setRevealed(true);
     onAnswer(q.id, opt, opt === q.correct);
   };
-  const optBg = k => { if (!revealed) return selected === k ? '#f0f0ee' : '#fff'; if (k === q.correct) return '#dcfce7'; if (k === selected && k !== q.correct) return '#fee2e2'; return '#fafafa'; };
-  const optBorder = k => { if (!revealed) return selected === k ? '2px solid #888' : '1px solid #e5e5e5'; if (k === q.correct) return '1.5px solid #4ade80'; if (k === selected && k !== q.correct) return '1.5px solid #f87171'; return '1px solid #e5e5e5'; };
+  const optBg = k => { if (!revealed) return '#fff'; if (k === q.correct) return '#dcfce7'; if (k === selected && k !== q.correct) return '#fee2e2'; return '#fafafa'; };
+  const optBorder = k => { if (!revealed) return '1px solid #e5e5e5'; if (k === q.correct) return '1.5px solid #4ade80'; if (k === selected && k !== q.correct) return '1.5px solid #f87171'; return '1px solid #e5e5e5'; };
   const optColor = k => { if (!revealed) return '#1a1a1a'; if (k === q.correct) return '#166534'; if (k === selected && k !== q.correct) return '#991b1b'; return '#999'; };
   return (
     <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 14, padding: '1.25rem', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <Avatar name={q.author} size={30} />
+        <Avatar name={q.author} size={28} />
         <span style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>{q.author} · {q.date}</span>
       </div>
       <p style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 14, fontWeight: 600, color: '#1a1a1a' }}>{q.enunciado}</p>
       {['a', 'b', 'c'].map(k => (
         <button key={k} onClick={() => choose(k)}
-          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '11px 12px', marginBottom: 8, background: optBg(k), border: optBorder(k), borderRadius: 9, color: optColor(k), fontSize: 14, textAlign: 'left', transition: 'all 0.15s', cursor: revealed ? 'default' : 'pointer' }}>
-          <span style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px solid currentColor', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0, fontWeight: 700 }}>{k.toUpperCase()}</span>
+          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '11px 12px', marginBottom: 8, background: optBg(k), border: optBorder(k), borderRadius: 9, fontSize: 14, textAlign: 'left', transition: 'all 0.15s', cursor: revealed ? 'default' : 'pointer' }}>
+          <span style={{ width: 22, height: 22, borderRadius: '50%', border: `1.5px solid ${optColor(k)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0, fontWeight: 700, color: optColor(k) }}>{k.toUpperCase()}</span>
           <span style={{ flex: 1, color: optColor(k), fontWeight: 500 }}>{q.options[k]}</span>
           {revealed && k === q.correct && <span style={{ color: '#166534' }}>✓</span>}
           {revealed && k === selected && k !== q.correct && <span style={{ color: '#991b1b' }}>✗</span>}
@@ -201,7 +229,7 @@ function QuestionCard({ q, user, answers, onAnswer }) {
   );
 }
 
-/* ─── RESPONDER ─── */
+/* ─── RESPONDER (diario) ─── */
 function AnswerTab({ user, questions, answers, onAnswer }) {
   const [filter, setFilter] = useState('hoy');
   const [onlyFailed, setOnlyFailed] = useState(false);
@@ -231,32 +259,219 @@ function AnswerTab({ user, questions, answers, onAnswer }) {
   );
 }
 
-/* ─── BANCO DE PREGUNTAS ─── */
-function BancoTab({ questions }) {
+/* ─── MODO EXAMEN ─── */
+function ExamenTab({ questions }) {
+  const [phase, setPhase] = useState('config'); // config | exam | result
+  const [numQ, setNumQ] = useState(10);
+  const [examQs, setExamQs] = useState([]);
+  const [current, setCurrent] = useState(0);
+  const [answers, setAnswers] = useState([]); // {selected, correct}
+  const [selected, setSelected] = useState(null);
+
+  const startExam = () => {
+    if (questions.length === 0) return;
+    const max = Math.min(numQ, questions.length);
+    const shuffled = [...questions].sort(() => Math.random() - 0.5).slice(0, max);
+    setExamQs(shuffled);
+    setAnswers([]);
+    setCurrent(0);
+    setSelected(null);
+    setPhase('exam');
+  };
+
+  const confirmAnswer = () => {
+    if (selected === null) return;
+    const q = examQs[current];
+    const isCorrect = selected === q.correct;
+    const newAnswers = [...answers, { selected, correct: q.correct, isCorrect, enunciado: q.enunciado, options: q.options }];
+    setAnswers(newAnswers);
+    if (current + 1 < examQs.length) {
+      setCurrent(current + 1);
+      setSelected(null);
+    } else {
+      setPhase('result');
+    }
+  };
+
+  if (phase === 'config') {
+    return (
+      <div style={{ padding: '1.5rem 1.25rem', paddingBottom: 90 }}>
+        <div style={{ background: '#fff9f0', border: '1.5px solid #fbbf24', borderRadius: 14, padding: '1.25rem', marginBottom: 20 }}>
+          <p style={{ fontSize: 13, color: '#92400e', lineHeight: 1.6 }}>
+            🎓 <strong>Modo examen:</strong> responde todas las preguntas sin ver si aciertas o fallas. Al final recibirás tu nota. Cada error resta <strong>0,33 puntos</strong>.
+          </p>
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 14, padding: '1.5rem' }}>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>
+            Número de preguntas
+          </label>
+          <p style={{ fontSize: 12, color: '#aaa', marginBottom: 12 }}>Hay {questions.length} preguntas disponibles</p>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            {[5, 10, 20, 'Todas'].map(n => {
+              const val = n === 'Todas' ? questions.length : n;
+              const active = numQ === val;
+              return (
+                <button key={n} onClick={() => setNumQ(val)}
+                  style={{ flex: 1, padding: '10px 4px', fontSize: 13, fontWeight: active ? 700 : 400, border: `2px solid ${active ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: active ? '#1a1a1a' : '#fff', color: active ? '#fff' : '#888' }}>
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <span style={{ fontSize: 13, color: '#555', fontWeight: 500, flexShrink: 0 }}>O escribe:</span>
+            <input type="number" min={1} max={questions.length} value={numQ}
+              onChange={e => setNumQ(Math.max(1, Math.min(questions.length, parseInt(e.target.value) || 1)))}
+              style={{ width: 80 }} />
+            <span style={{ fontSize: 13, color: '#aaa' }}>preguntas</span>
+          </div>
+          <button onClick={startExam} disabled={questions.length === 0}
+            style={{ width: '100%', padding: '13px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700 }}>
+            Empezar examen →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'exam') {
+    const q = examQs[current];
+    const progress = Math.round(((current) / examQs.length) * 100);
+    return (
+      <div style={{ padding: '1rem 1.25rem', paddingBottom: 90 }}>
+        {/* Progreso */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#555', marginBottom: 6 }}>
+            <span style={{ fontWeight: 600 }}>Pregunta {current + 1} de {examQs.length}</span>
+            <span style={{ color: '#aaa' }}>{progress}% completado</span>
+          </div>
+          <div style={{ height: 5, background: '#eee', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${progress}%`, background: '#1a1a1a', borderRadius: 99, transition: 'width 0.3s' }} />
+          </div>
+        </div>
+
+        <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 14, padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Avatar name={q.author} size={26} />
+            <span style={{ fontSize: 12, color: '#aaa' }}>{q.author}</span>
+          </div>
+          <p style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 16, fontWeight: 600, color: '#1a1a1a' }}>{q.enunciado}</p>
+          {['a', 'b', 'c'].map(k => (
+            <button key={k} onClick={() => setSelected(k)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '11px 12px', marginBottom: 8, background: selected === k ? '#f0f0ee' : '#fff', border: `${selected === k ? '2px' : '1px'} solid ${selected === k ? '#888' : '#e5e5e5'}`, borderRadius: 9, fontSize: 14, textAlign: 'left', cursor: 'pointer', transition: 'all 0.12s' }}>
+              <span style={{ width: 22, height: 22, borderRadius: '50%', border: `1.5px solid ${selected === k ? '#555' : '#ccc'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0, fontWeight: 700, color: selected === k ? '#555' : '#ccc' }}>{k.toUpperCase()}</span>
+              <span style={{ flex: 1, color: '#1a1a1a', fontWeight: 500 }}>{q.options[k]}</span>
+              {selected === k && <span style={{ fontSize: 16 }}>●</span>}
+            </button>
+          ))}
+          <button onClick={confirmAnswer} disabled={selected === null}
+            style={{ width: '100%', marginTop: 8, padding: '12px', background: selected !== null ? '#1a1a1a' : '#ddd', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, transition: 'background 0.15s' }}>
+            {current + 1 === examQs.length ? 'Ver resultado' : 'Siguiente →'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'result') {
+    const total = examQs.length;
+    const correctas = answers.filter(a => a.isCorrect).length;
+    const incorrectas = answers.filter(a => !a.isCorrect).length;
+    const nota = Math.max(0, correctas - incorrectas * 0.33);
+    const notaFinal = nota.toFixed(2);
+    const notaColor = nota >= total * 0.6 ? '#3a9c5f' : nota >= total * 0.4 ? '#f0a500' : '#d9534f';
+    const pct = Math.round((correctas / total) * 100);
+
+    return (
+      <div style={{ padding: '1rem 1.25rem', paddingBottom: 90 }}>
+        <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 14, padding: '1.5rem', marginBottom: 16, textAlign: 'center' }}>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 8, fontWeight: 500 }}>Resultado del examen</p>
+          <p style={{ fontSize: 56, fontWeight: 800, color: notaColor, lineHeight: 1 }}>{notaFinal}</p>
+          <p style={{ fontSize: 13, color: '#aaa', marginTop: 4 }}>sobre {total} puntos</p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 16 }}>
+            <div>
+              <p style={{ fontSize: 22, fontWeight: 700, color: '#3a9c5f' }}>{correctas}</p>
+              <p style={{ fontSize: 12, color: '#aaa' }}>acertadas</p>
+            </div>
+            <div style={{ width: 1, background: '#e5e5e5' }} />
+            <div>
+              <p style={{ fontSize: 22, fontWeight: 700, color: '#d9534f' }}>{incorrectas}</p>
+              <p style={{ fontSize: 12, color: '#aaa' }}>falladas</p>
+            </div>
+            <div style={{ width: 1, background: '#e5e5e5' }} />
+            <div>
+              <p style={{ fontSize: 22, fontWeight: 700, color: '#888' }}>{pct}%</p>
+              <p style={{ fontSize: 12, color: '#aaa' }}>precisión</p>
+            </div>
+          </div>
+          <p style={{ fontSize: 12, color: '#bbb', marginTop: 10 }}>Penalización aplicada: -{(incorrectas * 0.33).toFixed(2)} pts</p>
+        </div>
+
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 10, fontWeight: 600 }}>Repaso de respuestas</p>
+        {answers.map((a, i) => (
+          <div key={i} style={{ background: '#fff', border: `1.5px solid ${a.isCorrect ? '#86efac' : '#fca5a5'}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 16, flexShrink: 0, color: a.isCorrect ? '#3a9c5f' : '#d9534f', fontWeight: 700 }}>{a.isCorrect ? '✓' : '✗'}</span>
+              <p style={{ fontSize: 14, color: '#1a1a1a', fontWeight: 600, lineHeight: 1.4 }}>{a.enunciado}</p>
+            </div>
+            {!a.isCorrect && (
+              <div style={{ marginLeft: 24 }}>
+                <p style={{ fontSize: 12, color: '#d9534f', marginBottom: 3 }}>Tu respuesta: <span style={{ fontWeight: 600 }}>{a.options[a.selected]}</span></p>
+                <p style={{ fontSize: 12, color: '#3a9c5f', fontWeight: 600 }}>Correcta: {a.options[a.correct]}</p>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <button onClick={() => setPhase('config')}
+          style={{ width: '100%', padding: '12px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, marginTop: 8 }}>
+          Nuevo examen
+        </button>
+      </div>
+    );
+  }
+}
+
+/* ─── BANCO DE PREGUNTAS (con editar/borrar) ─── */
+function BancoTab({ user, questions, onDelete, onEdit }) {
   const [search, setSearch] = useState('');
   const [filterAuthor, setFilterAuthor] = useState('todos');
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
   const authors = [...new Set(questions.map(q => q.author))].sort();
   let filtered = [...questions];
   if (filterAuthor !== 'todos') filtered = filtered.filter(q => q.author === filterAuthor);
   if (search.trim()) filtered = filtered.filter(q => q.enunciado.toLowerCase().includes(search.toLowerCase()));
   filtered.sort((a, b) => b.ts - a.ts);
 
+  const startEdit = q => {
+    setEditingId(q.id);
+    setEditForm({ enunciado: q.enunciado, a: q.options.a, b: q.options.b, c: q.options.c, correct: q.correct });
+  };
+
+  const saveEdit = async (id) => {
+    if (!editForm.enunciado.trim() || !editForm.a.trim() || !editForm.b.trim() || !editForm.c.trim()) return;
+    await onEdit(id, { enunciado: editForm.enunciado.trim(), options: { a: editForm.a.trim(), b: editForm.b.trim(), c: editForm.c.trim() }, correct: editForm.correct });
+    setEditingId(null);
+  };
+
+  const lbl = { display: 'block', fontSize: 12, color: '#777', marginBottom: 5, marginTop: 10, fontWeight: 500 };
+
   return (
     <div style={{ padding: '1rem 1.25rem', paddingBottom: 90 }}>
       <input type="text" placeholder="🔍  Buscar pregunta..." value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: 12 }} />
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <button onClick={() => setFilterAuthor('todos')}
-          style={{ padding: '5px 12px', fontSize: 13, fontWeight: filterAuthor === 'todos' ? 700 : 400, border: `1.5px solid ${filterAuthor === 'todos' ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 99, background: filterAuthor === 'todos' ? '#1a1a1a' : '#fff', color: filterAuthor === 'todos' ? '#fff' : '#666', cursor: 'pointer' }}>
-          Todos
-        </button>
-        {authors.map(a => (
+        {['todos', ...authors].map(a => (
           <button key={a} onClick={() => setFilterAuthor(a)}
             style={{ padding: '5px 12px', fontSize: 13, fontWeight: filterAuthor === a ? 700 : 400, border: `1.5px solid ${filterAuthor === a ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 99, background: filterAuthor === a ? '#1a1a1a' : '#fff', color: filterAuthor === a ? '#fff' : '#666', cursor: 'pointer' }}>
-            {a}
+            {a === 'todos' ? 'Todos' : a}
           </button>
         ))}
       </div>
       <p style={{ fontSize: 12, color: '#aaa', marginBottom: 12 }}>{filtered.length} pregunta{filtered.length !== 1 ? 's' : ''}</p>
+
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
@@ -264,20 +479,77 @@ function BancoTab({ questions }) {
         </div>
       ) : filtered.map(q => (
         <div key={q.id} style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <Avatar name={q.author} size={24} />
-            <span style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{q.author} · {q.date}</span>
-          </div>
-          <p style={{ fontSize: 14, lineHeight: 1.5, color: '#1a1a1a', fontWeight: 600, marginBottom: 8 }}>{q.enunciado}</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {['a', 'b', 'c'].map(k => (
-              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: k === q.correct ? '#dcfce7' : '#f9f9f7', border: `1px solid ${k === q.correct ? '#86efac' : '#ebebeb'}` }}>
-                <span style={{ width: 18, height: 18, borderRadius: '50%', background: k === q.correct ? '#4ade80' : '#e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: k === q.correct ? '#166534' : '#888', flexShrink: 0 }}>{k.toUpperCase()}</span>
-                <span style={{ fontSize: 13, color: k === q.correct ? '#166534' : '#555', fontWeight: k === q.correct ? 600 : 400 }}>{q.options[k]}</span>
-                {k === q.correct && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#3a9c5f', fontWeight: 700 }}>✓ correcta</span>}
+          {editingId === q.id ? (
+            /* Formulario edición */
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>Editando pregunta</p>
+              <label style={lbl}>Enunciado</label>
+              <textarea rows={2} value={editForm.enunciado} onChange={e => setEditForm(f => ({ ...f, enunciado: e.target.value }))} style={{ fontSize: 13 }} />
+              {['a', 'b', 'c'].map(k => (
+                <div key={k}>
+                  <label style={lbl}>Opción {k.toUpperCase()}</label>
+                  <input type="text" value={editForm[k]} onChange={e => setEditForm(f => ({ ...f, [k]: e.target.value }))} style={{ fontSize: 13 }} />
+                </div>
+              ))}
+              <label style={{ ...lbl, marginTop: 12 }}>Correcta</label>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                {['a', 'b', 'c'].map(k => (
+                  <button key={k} onClick={() => setEditForm(f => ({ ...f, correct: k }))}
+                    style={{ flex: 1, padding: '7px', fontSize: 13, fontWeight: 600, border: `2px solid ${editForm.correct === k ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 7, background: editForm.correct === k ? '#1a1a1a' : '#fff', color: editForm.correct === k ? '#fff' : '#888' }}>
+                    {k.toUpperCase()}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => saveEdit(q.id)} style={{ flex: 1, padding: '9px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600 }}>Guardar</button>
+                <button onClick={() => setEditingId(null)} style={{ flex: 1, padding: '9px', background: '#f5f5f3', color: '#555', border: '1px solid #e5e5e5', borderRadius: 7, fontSize: 13, fontWeight: 500 }}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Avatar name={q.author} size={24} />
+                <span style={{ fontSize: 12, color: '#888', fontWeight: 500, flex: 1 }}>{q.author} · {q.date}</span>
+                {q.author === user && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => startEdit(q)}
+                      style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #e5e5e5', borderRadius: 6, background: '#fff', color: '#555', fontWeight: 500 }}>
+                      ✏️ Editar
+                    </button>
+                    <button onClick={() => setConfirmDelete(q.id)}
+                      style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #fca5a5', borderRadius: 6, background: '#fff', color: '#d9534f', fontWeight: 500 }}>
+                      🗑️
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {confirmDelete === q.id ? (
+                <div style={{ background: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: 8, padding: '10px 12px', marginBottom: 6 }}>
+                  <p style={{ fontSize: 13, color: '#d9534f', marginBottom: 10, fontWeight: 500 }}>¿Borrar esta pregunta?</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={async () => { await onDelete(q.id); setConfirmDelete(null); }}
+                      style={{ flex: 1, padding: '8px', background: '#d9534f', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600 }}>Sí, borrar</button>
+                    <button onClick={() => setConfirmDelete(null)}
+                      style={{ flex: 1, padding: '8px', background: '#f5f5f3', color: '#555', border: '1px solid #e5e5e5', borderRadius: 6, fontSize: 13 }}>Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: 14, lineHeight: 1.5, color: '#1a1a1a', fontWeight: 600, marginBottom: 8 }}>{q.enunciado}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {['a', 'b', 'c'].map(k => (
+                      <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: k === q.correct ? '#dcfce7' : '#f9f9f7', border: `1px solid ${k === q.correct ? '#86efac' : '#ebebeb'}` }}>
+                        <span style={{ width: 18, height: 18, borderRadius: '50%', background: k === q.correct ? '#4ade80' : '#e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: k === q.correct ? '#166534' : '#888', flexShrink: 0 }}>{k.toUpperCase()}</span>
+                        <span style={{ fontSize: 13, color: k === q.correct ? '#166534' : '#555', fontWeight: k === q.correct ? 600 : 400 }}>{q.options[k]}</span>
+                        {k === q.correct && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#3a9c5f', fontWeight: 700 }}>✓</span>}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       ))}
     </div>
@@ -288,8 +560,6 @@ function BancoTab({ questions }) {
 function ResultsTab({ user, questions, answers }) {
   const [subTab, setSubTab] = useState('mis');
   const todayStr = TODAY();
-
-  /* MIS STATS */
   const myToday = Object.entries(answers).filter(([k, v]) => k.startsWith(user + '__') && v.date === todayStr);
   const correct = myToday.filter(([, v]) => v.correct).length;
   const wrong = myToday.filter(([, v]) => !v.correct).length;
@@ -300,7 +570,6 @@ function ResultsTab({ user, questions, answers }) {
   const failedQs = failedIds.map(id => questions.find(q => q.id === id)).filter(Boolean);
   const history = Object.entries(answers).filter(([k]) => k.startsWith(user + '__')).sort(([, a], [, b]) => b.ts - a.ts).slice(0, 20);
 
-  /* RANKING GLOBAL */
   const allUsers = [...new Set(Object.keys(answers).map(k => k.split('__')[0]))];
   const ranking = allUsers.map(u => {
     const all = Object.entries(answers).filter(([k]) => k.startsWith(u + '__'));
@@ -320,16 +589,14 @@ function ResultsTab({ user, questions, answers }) {
       <p style={{ fontSize: 26, fontWeight: 700, color: color || '#1a1a1a' }}>{val}</p>
     </div>
   );
-
-  const medals = ['🥇', '🥈', '🥉'];
+  const medals = ['🥇','🥈','🥉'];
 
   return (
     <div style={{ padding: '1rem 1.25rem', paddingBottom: 90 }}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        <button onClick={() => setSubTab('mis')} style={{ flex: 1, padding: '8px', fontSize: 13, fontWeight: subTab === 'mis' ? 700 : 400, border: `1.5px solid ${subTab === 'mis' ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: subTab === 'mis' ? '#1a1a1a' : '#fff', color: subTab === 'mis' ? '#fff' : '#666', cursor: 'pointer' }}>Mis resultados</button>
-        <button onClick={() => setSubTab('ranking')} style={{ flex: 1, padding: '8px', fontSize: 13, fontWeight: subTab === 'ranking' ? 700 : 400, border: `1.5px solid ${subTab === 'ranking' ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: subTab === 'ranking' ? '#1a1a1a' : '#fff', color: subTab === 'ranking' ? '#fff' : '#666', cursor: 'pointer' }}>🏆 Ranking</button>
+        <button onClick={() => setSubTab('mis')} style={{ flex: 1, padding: '8px', fontSize: 13, fontWeight: subTab === 'mis' ? 700 : 400, border: `1.5px solid ${subTab === 'mis' ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: subTab === 'mis' ? '#1a1a1a' : '#fff', color: subTab === 'mis' ? '#fff' : '#666' }}>Mis resultados</button>
+        <button onClick={() => setSubTab('ranking')} style={{ flex: 1, padding: '8px', fontSize: 13, fontWeight: subTab === 'ranking' ? 700 : 400, border: `1.5px solid ${subTab === 'ranking' ? '#1a1a1a' : '#e5e5e5'}`, borderRadius: 8, background: subTab === 'ranking' ? '#1a1a1a' : '#fff', color: subTab === 'ranking' ? '#fff' : '#666' }}>🏆 Ranking</button>
       </div>
-
       {subTab === 'mis' ? (
         <>
           <p style={{ fontSize: 13, color: '#888', marginBottom: 12, fontWeight: 600 }}>Resumen de hoy</p>
@@ -372,12 +639,12 @@ function ResultsTab({ user, questions, answers }) {
         </>
       ) : (
         <>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 4, fontWeight: 600 }}>Ranking global (total acumulado)</p>
-          <p style={{ fontSize: 12, color: '#bbb', marginBottom: 16 }}>Ordenado por aciertos totales</p>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 4, fontWeight: 600 }}>Ranking global</p>
+          <p style={{ fontSize: 12, color: '#bbb', marginBottom: 16 }}>Ordenado por aciertos totales acumulados</p>
           {ranking.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🏆</div>
-              <p style={{ fontSize: 14, color: '#999' }}>Aún no hay datos de ranking</p>
+              <p style={{ fontSize: 14, color: '#999' }}>Aún no hay datos</p>
             </div>
           ) : ranking.map((r, i) => (
             <div key={r.u} style={{ background: i === 0 ? '#fffbeb' : '#fff', border: `1.5px solid ${i === 0 ? '#fbbf24' : '#e5e5e5'}`, borderRadius: 14, padding: '14px', marginBottom: 10 }}>
@@ -386,7 +653,7 @@ function ResultsTab({ user, questions, answers }) {
                 <Avatar name={r.u} size={34} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>{r.u}</p>
-                  <p style={{ fontSize: 12, color: '#888' }}>{r.questionsUploaded} preguntas subidas en total</p>
+                  <p style={{ fontSize: 12, color: '#888' }}>{r.questionsUploaded} preguntas subidas</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: 22, fontWeight: 700, color: '#3a9c5f' }}>{r.pctAll}%</p>
@@ -394,11 +661,7 @@ function ResultsTab({ user, questions, answers }) {
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-                {[
-                  { label: 'Aciertos totales', val: r.correctAll, color: '#3a9c5f' },
-                  { label: 'Fallos totales', val: r.totalAll - r.correctAll, color: '#d9534f' },
-                  { label: 'Aciertos hoy', val: r.correctToday, color: '#f0a500' },
-                ].map(s => (
+                {[{ label: 'Aciertos totales', val: r.correctAll, color: '#3a9c5f' }, { label: 'Fallos totales', val: r.totalAll - r.correctAll, color: '#d9534f' }, { label: 'Aciertos hoy', val: r.correctToday, color: '#f0a500' }].map(s => (
                   <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px', textAlign: 'center' }}>
                     <p style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{s.val}</p>
                     <p style={{ fontSize: 10, color: '#aaa', marginTop: 2, lineHeight: 1.3 }}>{s.label}</p>
@@ -413,7 +676,7 @@ function ResultsTab({ user, questions, answers }) {
   );
 }
 
-/* ─── APP PRINCIPAL ─── */
+/* ─── APP ─── */
 function App() {
   const [user, setUser] = useState(() => localStorage.getItem('opos:nick') || null);
   const [tab, setTab] = useState('responder');
@@ -433,6 +696,13 @@ function App() {
     return () => { qRef.off(); aRef.off(); };
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      requestNotificationPermission();
+      scheduleReminderCheck();
+    }
+  }, [user]);
+
   const handleLogin = nick => { localStorage.setItem('opos:nick', nick); setUser(nick); };
   const handleSaveQuestion = useCallback(async q => { await db.ref('questions').push(q); }, []);
   const handleAnswer = useCallback(async (qid, selected, correct) => {
@@ -441,6 +711,8 @@ function App() {
     if (snap.exists()) return;
     await db.ref(`answers/${key}`).set({ selected, correct, date: TODAY(), ts: Date.now() });
   }, [user]);
+  const handleDelete = useCallback(async (id) => { await db.ref(`questions/${id}`).remove(); }, []);
+  const handleEdit = useCallback(async (id, data) => { await db.ref(`questions/${id}`).update(data); }, []);
 
   if (!user) return <LoginScreen onLogin={handleLogin} />;
 
@@ -450,15 +722,15 @@ function App() {
   const todayTotal = todayAnswers.length;
 
   const navItems = [
-    { id: 'crear',      icon: '＋', label: 'Crear' },
-    { id: 'responder',  icon: '◯',  label: 'Test' },
-    { id: 'banco',      icon: '📋', label: 'Banco' },
-    { id: 'resultados', icon: '◎',  label: 'Resultados' },
+    { id: 'crear',      icon: '＋',  label: 'Crear' },
+    { id: 'responder',  icon: '◯',   label: 'Test' },
+    { id: 'examen',     icon: '🎓',  label: 'Examen' },
+    { id: 'banco',      icon: '📋',  label: 'Banco' },
+    { id: 'resultados', icon: '◎',   label: 'Resultados' },
   ];
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* HEADER */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '10px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Avatar name={user} size={34} />
@@ -468,12 +740,9 @@ function App() {
           </div>
         </div>
         <button onClick={() => { localStorage.removeItem('opos:nick'); setUser(null); }}
-          style={{ fontSize: 13, color: '#888', background: 'none', border: '1px solid #e5e5e5', borderRadius: 6, padding: '5px 10px', fontWeight: 500 }}>
-          Salir
-        </button>
+          style={{ fontSize: 13, color: '#888', background: 'none', border: '1px solid #e5e5e5', borderRadius: 6, padding: '5px 10px', fontWeight: 500 }}>Salir</button>
       </div>
 
-      {/* CONTENIDO */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: '#999', fontSize: 14 }}>Cargando...</div>
@@ -481,21 +750,22 @@ function App() {
           <CreateTab user={user} questions={questions} onSave={handleSaveQuestion} />
         ) : tab === 'responder' ? (
           <AnswerTab user={user} questions={questions} answers={answers} onAnswer={handleAnswer} />
+        ) : tab === 'examen' ? (
+          <ExamenTab questions={questions} />
         ) : tab === 'banco' ? (
-          <BancoTab questions={questions} />
+          <BancoTab user={user} questions={questions} onDelete={handleDelete} onEdit={handleEdit} />
         ) : (
           <ResultsTab user={user} questions={questions} answers={answers} />
         )}
       </div>
 
-      {/* NAV */}
       <nav style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: '#fff', borderTop: '1px solid #e5e5e5', display: 'flex', zIndex: 10 }}>
         {navItems.map(n => {
           const active = tab === n.id;
           return (
             <button key={n.id} onClick={() => setTab(n.id)}
-              style={{ flex: 1, padding: '8px 4px 6px', fontSize: 10, fontWeight: active ? 700 : 400, color: active ? '#1a1a1a' : '#bbb', background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer', borderTop: active ? '2.5px solid #1a1a1a' : '2.5px solid transparent' }}>
-              <span style={{ fontSize: 18 }}>{n.icon}</span>
+              style={{ flex: 1, padding: '8px 2px 6px', fontSize: 10, fontWeight: active ? 700 : 400, color: active ? '#1a1a1a' : '#bbb', background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer', borderTop: active ? '2.5px solid #1a1a1a' : '2.5px solid transparent' }}>
+              <span style={{ fontSize: 17 }}>{n.icon}</span>
               <span>{n.label}</span>
               {n.id === 'crear' && <span style={{ fontSize: 9, color: todayMine >= 5 ? '#d9534f' : '#bbb' }}>{todayMine}/5</span>}
             </button>
