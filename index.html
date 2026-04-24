@@ -601,6 +601,13 @@ function TemasClave() {
           </div>
         );
       })}
+
+      {!showNewTema && (
+        <button onClick={() => setShowNewTema(true)}
+          style={{ width: '100%', marginTop: 12, padding: '12px', background: '#fff', color: '#1a1a1a', border: '1.5px dashed #ccc', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          + Añadir nuevo tema
+        </button>
+      )}
     </div>
   );
 }
