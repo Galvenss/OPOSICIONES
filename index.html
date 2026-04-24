@@ -514,8 +514,11 @@ function TemasClave() {
       {temas.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-          <p style={{ fontSize: 14, color: '#999' }}>No hay temas todavía</p>
-          <p style={{ fontSize: 13, color: '#bbb', marginTop: 6 }}>Pulsa "+ Tema" para añadir el primero</p>
+          <p style={{ fontSize: 14, color: '#999', marginBottom: 20 }}>No hay temas todavía</p>
+          <button onClick={() => setShowNewTema(true)}
+            style={{ padding: '12px 24px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+            + Crear primer tema
+          </button>
         </div>
       ) : temas.map(tema => {
         const conceptos = tema.conceptos ? Object.entries(tema.conceptos).map(([id, c]) => ({ ...c, id })).sort((a, b) => a.ts - b.ts) : [];
