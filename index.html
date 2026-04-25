@@ -657,8 +657,78 @@ function TemasClave() {
   );
 }
 
-/* ─── BANCO DE PREGUNTAS (con editar/borrar + Temas Clave) ─── */
-function BancoTab({ user, questions, onDelete, onEdit }) {
+/* ─── BLOQUE EXPLICACIÓN (desplegable) ─── */
+function ExplicacionBloque({ q, user, onEditExplicacion }) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(q.explicacion || '');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    await onEditExplicacion(q.id, text.trim());
+    setSaving(false);
+    setEditing(false);
+  };
+
+  const hasExplicacion = !!q.explicacion;
+
+  return (
+    <div style={{ borderTop: '1px solid #f0f0ee', marginTop: 4 }}>
+      <button onClick={() => { setOpen(o => !o); setText(q.explicacion || ''); }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: hasExplicacion ? '#f0a500' : '#bbb' }}>
+          {hasExplicacion ? '💡 Explicación / truco mnemotécnico' : '💡 Añadir explicación o truco'}
+        </span>
+        <span style={{ fontSize: 12, color: '#ccc', transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+      </button>
+
+      {open && (
+        <div style={{ paddingBottom: 10 }}>
+          {editing ? (
+            <div>
+              <textarea
+                rows={3}
+                value={text}
+                onChange={e => setText(e.target.value)}
+                placeholder="Ej: Recuerda que el art. 14 = IGUALDAD porque el 14 tiene dos palos iguales..."
+                style={{ width: '100%', fontSize: 13, marginBottom: 8 }}
+                autoFocus
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={save} disabled={saving}
+                  style={{ flex: 1, padding: '8px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600 }}>
+                  {saving ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button onClick={() => setEditing(false)}
+                  style={{ flex: 1, padding: '8px', background: '#f5f5f3', color: '#555', border: '1px solid #e5e5e5', borderRadius: 7, fontSize: 13 }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              {hasExplicacion ? (
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                  <p style={{ fontSize: 13, color: '#92400e', lineHeight: 1.6 }}>{q.explicacion}</p>
+                </div>
+              ) : (
+                <p style={{ fontSize: 13, color: '#bbb', marginBottom: 8, fontStyle: 'italic' }}>Sin explicación todavía</p>
+              )}
+              <button onClick={() => { setEditing(true); setText(q.explicacion || ''); }}
+                style={{ fontSize: 12, padding: '5px 12px', background: '#fff', color: '#555', border: '1px solid #e5e5e5', borderRadius: 6, fontWeight: 500 }}>
+                ✏️ {hasExplicacion ? 'Editar explicación' : 'Añadir explicación'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── BANCO DE PREGUNTAS ─── */
+function BancoTab({ user, questions, onDelete, onEdit, onEditExplicacion }) {
   const [subTab, setSubTab] = useState('preguntas');
   const [search, setSearch] = useState('');
   const [filterAuthor, setFilterAuthor] = useState('todos');
@@ -765,7 +835,7 @@ function BancoTab({ user, questions, onDelete, onEdit }) {
                   ) : (
                     <>
                       <p style={{ fontSize: 14, lineHeight: 1.5, color: '#1a1a1a', fontWeight: 600, marginBottom: 8 }}>{q.enunciado}</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
                         {['a', 'b', 'c'].map(k => (
                           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: k === q.correct ? '#dcfce7' : '#f9f9f7', border: `1px solid ${k === q.correct ? '#86efac' : '#ebebeb'}` }}>
                             <span style={{ width: 18, height: 18, borderRadius: '50%', background: k === q.correct ? '#4ade80' : '#e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: k === q.correct ? '#166534' : '#888', flexShrink: 0 }}>{k.toUpperCase()}</span>
@@ -774,6 +844,7 @@ function BancoTab({ user, questions, onDelete, onEdit }) {
                           </div>
                         ))}
                       </div>
+                      <ExplicacionBloque q={q} user={user} onEditExplicacion={onEditExplicacion} />
                     </>
                   )}
                 </>
@@ -943,6 +1014,7 @@ function App() {
   }, [user]);
   const handleDelete = useCallback(async (id) => { await db.ref(`questions/${id}`).remove(); }, []);
   const handleEdit = useCallback(async (id, data) => { await db.ref(`questions/${id}`).update(data); }, []);
+  const handleEditExplicacion = useCallback(async (id, explicacion) => { await db.ref(`questions/${id}`).update({ explicacion }); }, []);
 
   if (!user) return <LoginScreen onLogin={handleLogin} />;
 
@@ -983,7 +1055,7 @@ function App() {
         ) : tab === 'examen' ? (
           <ExamenTab questions={questions} />
         ) : tab === 'banco' ? (
-          <BancoTab user={user} questions={questions} onDelete={handleDelete} onEdit={handleEdit} />
+          <BancoTab user={user} questions={questions} onDelete={handleDelete} onEdit={handleEdit} onEditExplicacion={handleEditExplicacion} />
         ) : (
           <ResultsTab user={user} questions={questions} answers={answers} />
         )}
